@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TikTok Data Explorer // Dev Dashboard</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        darkBg: '#0b0f19',
+                        darkCard: '#111827',
+                        darkBorder: '#1f2937',
+                        tiktokRed: '#fe2c55',
+                        tiktokCyan: '#25f4ee'
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Alpine.js for reactive UI -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #0b0f19; }
+        ::-webkit-scrollbar-thumb { background: #1f2937; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #374151; }
+    </style>
+</head>
+<body class="bg-darkBg text-gray-100 min-h-screen flex flex-col selection:bg-tiktokRed selection:text-white" x-data="tiktokApp()">
+
+    <!-- Header / Navbar -->
+    <header class="border-b border-darkBorder bg-darkCard/50 backdrop-blur sticky top-0 z-50 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-tiktokRed to-pink-600 flex items-center justify-center shadow-lg shadow-tiktokRed/20">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-lg font-bold tracking-tight flex items-center gap-2">
+                    TikTok Data Explorer 
+                    <span class="text-xs font-mono px-2 py-0.5 rounded-full bg-tiktokRed/10 text-tiktokRed border border-tiktokRed/20">v1.0.0</span>
+                </h1>
+                <p class="text-xs text-gray-400">Analizador local de archivos de exportación JSON</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <div class="hidden md:flex items-center gap-2 text-xs text-emerald-400 bg-emerald-950/40 border border-emerald-900/50 px-3 py-1.5 rounded-lg">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span>100% Privado (Procesamiento Local)</span>
+            </div>
+            <template x-if="dataLoaded">
+                <button @click="resetData()" class="text-xs font-medium px-3 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 transition-all border border-gray-700 flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    Cargar otro archivo
+                </button>
+            </template>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col gap-6">
+
+        <!-- Notification Toast -->
+        <template x-if="notification.message">
+            <div :class="notification.type === 'error' ? 'bg-red-950/80 border-red-900 text-red-200' : 'bg-emerald-950/80 border-emerald-900 text-emerald-200'" class="border px-4 py-3 rounded-xl text-sm flex items-center justify-between shadow-lg backdrop-blur animate-fade-in">
+                <div class="flex items-center gap-2">
+                    <span x-text="notification.type === 'error' ? '⚠️' : '✅'"></span>
+                    <span x-text="notification.message"></span>
+                </div>
+                <button @click="notification.message = ''" class="text-xs hover:opacity-75 font-bold px-2 py-1">✕</button>
+            </div>
+        </template>
+
+        <!-- STATE 1: UPLOAD SCREEN -->
+        <template x-if="!dataLoaded">
+            <div class="flex-1 flex flex-col items-center justify-center my-auto py-12">
+                <div class="max-w-xl w-full bg-darkCard border border-darkBorder rounded-2xl p-8 shadow-2xl flex flex-col items-center text-center relative overflow-hidden group">
+                    <!-- Background glow effect -->
+                    <div class="absolute -top-24 -left-24 w-48 h-48 bg-tiktokRed/10 rounded-full blur-3xl pointer-events-none"></div>
+                    <div class="absolute -bottom-24 -right-24 w-48 h-48 bg-tiktokCyan/10 rounded-full blur-3xl pointer-events-none"></div>
+
+                    <div class="w-16 h-16 rounded-2xl bg-gray-800/80 border border-gray-700 flex items-center justify-center mb-6 text-tiktokRed shadow-inner group-hover:scale-105 transition-transform duration-300">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                        </svg>
+                    </div>
+
+                    <h2 class="text-xl font-bold mb-2">Sube tu archivo <span class="font-mono text-tiktokCyan">user_data_tiktok.json</span></h2>
+                    <p class="text-sm text-gray-400 mb-6 leading-relaxed">
+                        Arrastra y suelta tu archivo JSON exportado de TikTok aquí o selecciónalo. Los datos se procesan íntegramente en tu navegador y nunca se envían a ningún servidor externo.
+                    </p>
+
+                    <!-- Dropzone -->
+                    <label @dragover.prevent="$el.classList.add('border-tiktokRed')" @dragleave.prevent="$el.classList.remove('border-tiktokRed')" @drop.prevent="handleFileDrop($event)" class="w-full border-2 border-dashed border-gray-700 hover:border-tiktokRed/60 rounded-xl p-8 cursor-pointer transition-all bg-gray-900/40 hover:bg-gray-900/70 flex flex-col items-center justify-center gap-3">
+                        <input type="file" accept=".json" @change="handleFileSelect($event)" class="hidden">
+                        <span class="text-sm font-medium text-gray-300">Haz clic para buscar o arrastra el archivo JSON</span>
+                        <span class="text-xs text-gray-500 font-mono">Soporta archivos .json de TikTok de cualquier tamaño</span>
+                    </label>
+
+                    <div class="mt-6 flex flex-col sm:flex-row items-center gap-4 w-full justify-center">
+                        <button @click="loadSampleData()" class="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 border border-gray-700 text-xs font-medium text-gray-200 transition-all flex items-center justify-center gap-2">
+                            <svg class="w-4 h-4 text-tiktokCyan" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                            Cargar datos de ejemplo (Demo)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <!-- STATE 2: DASHBOARD INTERFACE -->
+        <template x-if="dataLoaded">
+            <div class="flex flex-col gap-6 animate-fade-in">
+
+                <!-- Quick Stats Panel -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                    <!-- Total Likes -->
+                    <div class="bg-darkCard border border-darkBorder rounded-2xl p-5 flex items-center justify-between shadow-lg">
+                        <div>
+                            <p class="text-xs font-medium text-gray-400 uppercase tracking-wider">Me gusta (Likes)</p>
+                            <h3 class="text-2xl font-bold font-mono mt-1 text-tiktokRed" x-text="stats.totalLikes.toLocaleString()">0</h3>
+                        </div>
+                        <div class="w-12 h-12 rounded-xl bg-tiktokRed/10 border border-tiktokRed/20 flex items-center justify-center text-tiktokRed">
+                            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                        </div>
+                    </div>
+
+                    <!-- Total Comments -->
+                    <div class="bg-darkCard border border-darkBorder rounded-2xl p-5 flex items-center justify-between shadow-lg">
+                        <div>
+                            <p class="text-xs font-medium text-gray-400 uppercase tracking-wider">Comentarios</p>
+                            <h3 class="text-2xl font-bold font-mono mt-1 text-tiktokCyan" x-text="stats.totalComments.toLocaleString()">0</h3>
+                        </div>
+                        <div class="w-12 h-12 rounded-xl bg-tiktokCyan/10 border border-tiktokCyan/20 flex items-center justify-center text-tiktokCyan">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                        </div>
+                    </div>
+
+                    <!-- Total Shares -->
+                    <div class="bg-darkCard border border-darkBorder rounded-2xl p-5 flex items-center justify-between shadow-lg">
+                        <div>
+                            <p class="text-xs font-medium text-gray-400 uppercase tracking-wider">Compartidos</p>
+                            <h3 class="text-2xl font-bold font-mono mt-1 text-purple-400" x-text="stats.totalShares.toLocaleString()">0</h3>
+                        </div>
+                        <div class="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+                        </div>
+                    </div>
+
+                    <!-- Total Favorites -->
+                    <div class="bg-darkCard border border-darkBorder rounded-2xl p-5 flex items-center justify-between shadow-lg">
+                        <div>
+                            <p class="text-xs font-medium text-gray-400 uppercase tracking-wider">Favoritos</p>
+                            <h3 class="text-2xl font-bold font-mono mt-1 text-amber-400" x-text="stats.totalFavorites.toLocaleString()">0</h3>
+                        </div>
+                        <div class="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
+                        </div>
+                    </div>
+
+                    <!-- First Interaction -->
+                    <div class="bg-darkCard border border-darkBorder rounded-2xl p-5 flex items-center justify-between shadow-lg">
+                        <div>
+                            <p class="text-xs font-medium text-gray-400 uppercase tracking-wider">1ª Interacción</p>
+                            <h3 class="text-sm font-bold font-mono mt-2 text-emerald-400 truncate max-w-[150px]" x-text="stats.firstInteraction || 'N/A'">N/A</h3>
+                        </div>
+                        <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Controls & Navigation Toolbar -->
+                <div class="bg-darkCard border border-darkBorder rounded-2xl p-4 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 shadow-lg">
+                    <!-- Tabs -->
+                    <div class="flex flex-wrap items-center bg-gray-900/60 p-1.5 rounded-xl border border-gray-800 self-start gap-1">
+                        <button @click="currentTab = 'likes'" :class="currentTab === 'likes' ? 'bg-tiktokRed text-white shadow-md' : 'text-gray-400 hover:text-gray-200'" class="px-4 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-2">
+                            <span>❤️ Me gusta</span>
+                            <span class="px-1.5 py-0.5 rounded-full text-[10px] bg-black/30 font-mono" x-text="likesList.length"></span>
+                        </button>
+                        <button @click="currentTab = 'comments'" :class="currentTab === 'comments' ? 'bg-tiktokCyan text-gray-950 font-bold shadow-md' : 'text-gray-400 hover:text-gray-200'" class="px-4 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-2">
+                            <span>💬 Comentarios</span>
+                            <span class="px-1.5 py-0.5 rounded-full text-[10px] bg-black/20 font-mono" x-text="commentsList.length"></span>
+                        </button>
+                        <button @click="currentTab = 'share'" :class="currentTab === 'share' ? 'bg-purple-600 text-white font-bold shadow-md' : 'text-gray-400 hover:text-gray-200'" class="px-4 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-2">
+                            <span>🔗 Compartidos</span>
+                            <span class="px-1.5 py-0.5 rounded-full text-[10px] bg-black/20 font-mono" x-text="sharesList.length"></span>
+                        </button>
+                        <button @click="currentTab = 'favorites'" :class="currentTab === 'favorites' ? 'bg-amber-500 text-gray-950 font-bold shadow-md' : 'text-gray-400 hover:text-gray-200'" class="px-4 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-2">
+                            <span>⭐ Favoritos</span>
+                            <span class="px-1.5 py-0.5 rounded-full text-[10px] bg-black/20 font-mono" x-text="favoritesList.length"></span>
+                        </button>
+                    </div>
+
+                    <!-- Search & Sort Controls -->
+                    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                        <!-- Search Bar -->
+                        <div class="relative flex-1 sm:w-72">
+                            <svg class="w-4 h-4 text-gray-400 absolute left-3.5 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                            <input type="text" x-model="searchQuery" placeholder="Buscar por texto o enlace..." class="w-full bg-gray-900 border border-gray-700 rounded-xl pl-10 pr-4 py-2 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-tiktokCyan transition-all">
+                        </div>
+
+                        <!-- Sort Selector -->
+                        <div class="flex items-center gap-2 bg-gray-900 border border-gray-700 rounded-xl px-3 py-1.5">
+                            <span class="text-xs text-gray-400">Orden:</span>
+                            <select x-model="sortOrder" class="bg-transparent text-xs text-gray-200 font-medium focus:outline-none cursor-pointer">
+                                <option value="oldest" class="bg-gray-900">Más antiguo primero (Histórico)</option>
+                                <option value="newest" class="bg-gray-900">Más reciente primero</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DATA LIST DISPLAY -->
+                <div class="bg-darkCard border border-darkBorder rounded-2xl p-5 shadow-lg flex flex-col gap-4">
+                    <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm font-bold uppercase tracking-wider text-gray-300" x-text="getTabTitle()"></span>
+                            <span class="text-xs font-mono text-gray-500 bg-gray-900 px-2 py-0.5 rounded border border-gray-800" x-text="filteredItems.length + ' elementos mostrados'"></span>
+                        </div>
+                    </div>
+
+                    <!-- Empty State for Filter -->
+                    <template x-if="filteredItems.length === 0">
+                        <div class="py-16 text-center flex flex-col items-center justify-center">
+                            <svg class="w-12 h-12 text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            <p class="text-sm font-medium text-gray-300">No se encontraron elementos que coincidan con la búsqueda.</p>
+                            <p class="text-xs text-gray-500 mt-1">Prueba con otro término o limpia el filtro de búsqueda.</p>
+                        </div>
+                    </template>
+
+                    <!-- Items Grid / List -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[700px] overflow-y-auto pr-2">
+                        <template x-for="(item, index) in filteredItems" :key="index">
+                            <div class="bg-gray-900/60 border border-gray-800/80 hover:border-gray-700 rounded-xl p-4 flex flex-col justify-between gap-3 transition-all hover:bg-gray-900 group">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div class="flex items-center gap-2">
+                                        <span class="w-7 h-7 rounded-lg bg-gray-800 border border-gray-700 flex items-center justify-center text-xs font-mono text-gray-400 group-hover:text-gray-200" x-text="index + 1"></span>
+                                        <div class="flex flex-col">
+                                            <span class="text-[11px] font-mono text-gray-400 flex items-center gap-1">
+                                                <svg class="w-3 h-3 text-tiktokCyan" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                                <span x-text="item.date || 'Fecha desconocida'"></span>
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <template x-if="item.link">
+                                        <a :href="item.link" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded-lg bg-tiktokRed/10 hover:bg-tiktokRed text-tiktokRed hover:text-white border border-tiktokRed/30 text-xs font-semibold transition-all flex items-center gap-1.5 shadow-sm">
+                                            <span>Ver en TikTok</span>
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                                        </a>
+                                    </template>
+                                </div>
+
+                                <!-- Comment Text or details if available -->
+                                <template x-if="item.text">
+                                    <div class="bg-gray-950/60 border border-gray-800/60 rounded-lg p-3 text-xs text-gray-200 font-mono leading-relaxed break-words" x-text="item.text"></div>
+                                </template>
+                                <template x-if="!item.text && item.link">
+                                    <div class="text-xs text-gray-500 truncate font-mono" x-text="item.link"></div>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+
+                </div>
+
+            </div>
+        </template>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-darkBorder bg-darkCard/30 py-4 text-center text-xs text-gray-500">
+        TikTok Data Explorer — Herramienta de análisis local y cliente para creadores y desarrolladores.
+    </footer>
+
+    <!-- Alpine.js Application Logic -->
+    <script>
+        function tiktokApp() {
+            return {
+                dataLoaded: false,
+                currentTab: 'likes',
+                searchQuery: '',
+                sortOrder: 'oldest',
+                rawJson: null,
+                likesList: [],
+                commentsList: [],
+                sharesList: [],
+                favoritesList: [],
+                stats: {
+                    totalLikes: 0,
+                    totalComments: 0,
+                    totalShares: 0,
+                    totalFavorites: 0,
+                    firstInteraction: null
+                },
+                notification: {
+                    message: '',
+                    type: 'success'
+                },
+
+                showNotification(msg, type = 'success') {
+                    this.notification.message = msg;
+                    this.notification.type = type;
+                    setTimeout(() => {
+                        if (this.notification.message === msg) {
+                            this.notification.message = '';
+                        }
+                    }, 5000);
+                },
+
+                handleFileSelect(event) {
+                    const file = event.target.files[0];
+                    if (file) {
+                        this.processFile(file);
+                    }
+                },
+
+                handleFileDrop(event) {
+                    const file = event.dataTransfer.files[0];
+                    if (file) {
+                        if (file.type === "application/json" || file.name.endsWith('.json')) {
+                            this.processFile(file);
+                        } else {
+                            this.showNotification('Por favor, selecciona un archivo formato .json válido.', 'error');
+                        }
+                    }
+                },
+
+                processFile(file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const json = JSON.parse(e.target.result);
+                            this.parseTikTokData(json);
+                            this.dataLoaded = true;
+                            this.showNotification('¡Archivo cargado y analizado con éxito!');
+                        } catch (err) {
+                            console.error(err);
+                            this.showNotification('Error al parsear el archivo JSON. Verifica que sea un respaldo válido de TikTok.', 'error');
+                        }
+                    };
+                    reader.readAsText(file);
+                },
+
+                loadSampleData() {
+                    // Sample data mimicking TikTok JSON structure for instant testing
+                    const sampleJson = {
+                        "Comment": {
+                            "Comments": [
+                                { "date": "2021-07-18 01:07:44", "comment": "@paco.web is real?", "link": "https://www.tiktokv.com/share/video/6751904198403015686" },
+                                { "date": "2022-03-12 14:22:10", "comment": "Excelente tutorial, me sirvió muchísimo 🚀", "link": "https://www.tiktokv.com/share/video/7012345678901234567" }
+                            ]
+                        },
+                        "Likes and Favorites": {
+                            "Like List": [
+                                { "date": "2021-07-11 16:59:13", "link": "https://www.tiktokv.com/share/video/6982286349978144006" },
+                                { "date": "2021-09-20 18:30:00", "link": "https://www.tiktokv.com/share/video/7000123456789012345" }
+                            ]
+                        },
+                        "Share History": {
+                            "ShareHistoryList": [
+                                { "date": "2021-08-01 12:00:00", "method": "Copiar enlace", "link": "https://www.tiktokv.com/share/video/6982286349978144006" },
+                                { "date": "2022-05-15 19:40:12", "method": "WhatsApp", "link": "https://www.tiktokv.com/share/video/7089123456789012345" }
+                            ]
+                        }
+                    };
+                    this.parseTikTokData(sampleJson);
+                    this.dataLoaded = true;
+                    this.showNotification('Datos de demostración cargados correctamente.');
+                },
+
+                parseTikTokData(json) {
+                    this.rawJson = json;
+                    this.likesList = [];
+                    this.commentsList = [];
+                    this.sharesList = [];
+                    this.favoritesList = [];
+
+                    // 1. Extract Comments
+                    let commentsSource = json.Comment?.Comments || json.Comments || json.comment_list || [];
+                    if (!Array.isArray(commentsSource) && json.Comment) {
+                        for (let key in json.Comment) {
+                            if (Array.isArray(json.Comment[key])) {
+                                commentsSource = json.Comment[key];
+                                break;
+                            }
+                        }
+                    }
+                    if (Array.isArray(commentsSource)) {
+                        this.commentsList = commentsSource.map(item => ({
+                            date: item.date || item.create_time || item.timestamp || '',
+                            text: item.comment || item.text || item.sticker || '',
+                            link: item.link || item.video_link || item.url || ''
+                        }));
+                    }
+
+                    // 2. Extract Likes
+                    let likesSource = json['Likes and Favorites']?.['Like List'] || json['Like List'] || json.likes || [];
+                    if (!Array.isArray(likesSource) && json['Likes and Favorites']) {
+                        for (let key in json['Likes and Favorites']) {
+                            if (key.toLowerCase().includes('like') && Array.isArray(json['Likes and Favorites'][key])) {
+                                likesSource = json['Likes and Favorites'][key];
+                                break;
+                            }
+                        }
+                    }
+                    if (Array.isArray(likesSource)) {
+                        this.likesList = likesSource.map(item => ({
+                            date: item.date || item.create_time || item.timestamp || '',
+                            text: item.text || item.title || '',
+                            link: item.link || item.url || item.video_link || ''
+                        }));
+                    }
+
+                    // 3. Extract Shares (Support Share, ShareHistory, Share History, ShareList)
+                    let shareSource = json.Share || json.ShareHistory || json['Share History'] || json.ShareList || [];
+                    if (!Array.isArray(shareSource) && (json.Share || json.ShareHistory || json['Share History'] || json.ShareList)) {
+                        let container = json.Share || json.ShareHistory || json['Share History'] || json.ShareList;
+                        if (Array.isArray(container)) {
+                            shareSource = container;
+                        } else {
+                            for (let key in container) {
+                                if (Array.isArray(container[key])) {
+                                    shareSource = container[key];
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    if (Array.isArray(shareSource)) {
+                        this.sharesList = shareSource.map(item => ({
+                            date: item.date || item.create_time || item.timestamp || '',
+                            text: item.method || item.platform || item.text || item.title || 'Video compartido',
+                            link: item.link || item.url || item.video_link || ''
+                        }));
+                    }
+
+                    // 4. Extract Favorites / Collections
+                    let allFavs = [];
+                    if (json['Likes and Favorites']) {
+                        for (let key in json['Likes and Favorites']) {
+                            if (Array.isArray(json['Likes and Favorites'][key]) && !key.toLowerCase().includes('like')) {
+                                json['Likes and Favorites'][key].forEach(subItem => {
+                                    allFavs.push({
+                                        date: subItem.date || subItem.create_time || '',
+                                        text: `[${key}] ${subItem.text || subItem.title || ''}`,
+                                        link: subItem.link || subItem.url || ''
+                                    });
+                                });
+                            }
+                        }
+                    }
+                    this.favoritesList = allFavs.length > 0 ? allFavs : [];
+
+                    // Compute Stats
+                    this.stats.totalLikes = this.likesList.length;
+                    this.stats.totalComments = this.commentsList.length;
+                    this.stats.totalShares = this.sharesList.length;
+                    this.stats.totalFavorites = this.favoritesList.length;
+
+                    // Find first interaction across all lists
+                    let allDates = [...this.likesList, ...this.commentsList, ...this.sharesList, ...this.favoritesList]
+                        .map(i => i.date)
+                        .filter(d => d && d.trim() !== '');
+
+                    if (allDates.length > 0) {
+                        allDates.sort();
+                        this.stats.firstInteraction = allDates[0];
+                    } else {
+                        this.stats.firstInteraction = 'N/A';
+                    }
+                },
+
+                getTabTitle() {
+                    if (this.currentTab === 'likes') return 'Lista de Me gusta';
+                    if (this.currentTab === 'comments') return 'Historial de Comentarios';
+                    if (this.currentTab === 'share') return 'Historial de Compartidos';
+                    if (this.currentTab === 'favorites') return 'Favoritos y Colecciones';
+                    return '';
+                },
+
+                resetData() {
+                    this.dataLoaded = false;
+                    this.rawJson = null;
+                    this.likesList = [];
+                    this.commentsList = [];
+                    this.sharesList = [];
+                    this.favoritesList = [];
+                    this.searchQuery = '';
+                },
+
+                get filteredItems() {
+                    let list = [];
+                    if (this.currentTab === 'likes') list = this.likesList;
+                    else if (this.currentTab === 'comments') list = this.commentsList;
+                    else if (this.currentTab === 'share') list = this.sharesList;
+                    else if (this.currentTab === 'favorites') list = this.favoritesList;
+
+                    // Filter by search query
+                    if (this.searchQuery.trim() !== '') {
+                        const query = this.searchQuery.toLowerCase();
+                        list = list.filter(item => {
+                            const textMatch = item.text && item.text.toLowerCase().includes(query);
+                            const linkMatch = item.link && item.link.toLowerCase().includes(query);
+                            const dateMatch = item.date && item.date.toLowerCase().includes(query);
+                            return textMatch || linkMatch || dateMatch;
+                        });
+                    }
+
+                    // Sort items
+                    return [...list].sort((a, b) => {
+                        const dateA = a.date || '';
+                        const dateB = b.date || '';
+                        if (this.sortOrder === 'oldest') {
+                            return dateA.localeCompare(dateB);
+                        } else {
+                            return dateB.localeCompare(dateA);
+                        }
+                    });
+                }
+            }
+        }
+    </script>
+</body>
+</html>
