@@ -58,22 +58,33 @@
             <div>
                 <h1 class="text-lg font-bold tracking-tight flex items-center gap-2">
                     TikTok Data Explorer 
-                    <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-tiktokRed/10 text-tiktokRed border border-tiktokRed/20 font-bold">v2.0 Pro</span>
+                    <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-tiktokRed/10 text-tiktokRed border border-tiktokRed/20 font-bold">v2.1 Pro</span>
                 </h1>
                 <p class="text-xs text-gray-400">Analizador local oficial de respaldos JSON con reproductor y vistas previas</p>
             </div>
         </div>
 
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2.5 flex-wrap justify-end">
             <div class="hidden md:flex items-center gap-2 text-xs text-emerald-400 bg-emerald-950/40 border border-emerald-900/50 px-3 py-1.5 rounded-lg">
                 <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                 <span>100% Privado (Procesamiento en tu navegador)</span>
             </div>
+            
             <template x-if="dataLoaded">
-                <button @click="resetData()" class="text-xs font-medium px-3.5 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 transition-all border border-gray-700 flex items-center gap-1.5 shadow-sm active:scale-95">
-                    <svg class="w-4 h-4 text-tiktokCyan" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                    Cargar otro archivo
-                </button>
+                <div class="flex items-center gap-2">
+                    <!-- Button to merge another JSON file -->
+                    <label class="text-xs font-semibold px-3 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-tiktokCyan transition-all border border-gray-700 flex items-center gap-1.5 shadow-sm active:scale-95 cursor-pointer" title="Fusionar otro archivo JSON para sumar likes o historial anterior">
+                        <input type="file" accept=".json" @change="handleMergeFileSelect($event)" class="hidden">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        <span>Fusionar otro JSON</span>
+                    </label>
+
+                    <!-- Button to load a fresh new file -->
+                    <button @click="resetData()" class="text-xs font-medium px-3 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 transition-all border border-gray-700 flex items-center gap-1.5 shadow-sm active:scale-95">
+                        <svg class="w-4 h-4 text-tiktokRed" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        Reiniciar
+                    </button>
+                </div>
             </template>
         </div>
     </header>
@@ -282,18 +293,18 @@
                         <!-- Search Bar -->
                         <div class="relative flex-1 max-w-lg">
                             <svg class="w-4 h-4 text-gray-400 absolute left-3.5 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                            <input type="text" x-model="searchQuery" @input="currentPage = 1" placeholder="Buscar por texto, fecha, ID de video o enlace..." class="w-full bg-gray-900/90 border border-gray-700/80 rounded-xl pl-10 pr-9 py-2 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-tiktokCyan transition-all">
+                            <input type="text" x-model="searchQuery" @input="currentPage = 1" placeholder="Buscar por texto, fecha (ej. 2021), ID de video o enlace..." class="w-full bg-gray-900/90 border border-gray-700/80 rounded-xl pl-10 pr-9 py-2 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-tiktokCyan transition-all">
                             <button x-show="searchQuery" @click="searchQuery = ''; currentPage = 1" class="absolute right-3 top-2.5 text-xs text-gray-500 hover:text-gray-300">✕</button>
                         </div>
 
                         <!-- Sort & Page Size Controls -->
                         <div class="flex items-center gap-2 flex-wrap">
-                            <!-- Sort Order -->
+                            <!-- Sort Order (Precise numerical timestamp sort) -->
                             <div class="flex items-center gap-2 bg-gray-900/90 border border-gray-700/80 rounded-xl px-3 py-1.5">
                                 <span class="text-xs text-gray-400">Orden:</span>
                                 <select x-model="sortOrder" @change="currentPage = 1" class="bg-transparent text-xs text-gray-200 font-medium focus:outline-none cursor-pointer">
                                     <option value="newest" class="bg-gray-900">Más reciente primero</option>
-                                    <option value="oldest" class="bg-gray-900">Más antiguo primero</option>
+                                    <option value="oldest" class="bg-gray-900">Más antiguo primero (Histórico desde 2021)</option>
                                 </select>
                             </div>
 
@@ -313,16 +324,32 @@
                 <!-- DATA LIST DISPLAY -->
                 <div class="bg-darkCard border border-darkBorder rounded-2xl p-5 shadow-lg flex flex-col gap-4">
                     
-                    <!-- Table header status -->
+                    <!-- Table header status & Date range -->
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-800 pb-3 gap-2">
-                        <div class="flex items-center gap-2">
+                        <div class="flex items-center gap-2 flex-wrap">
                             <span class="text-sm font-bold uppercase tracking-wider text-gray-200" x-text="getTabTitle()"></span>
-                            <span class="text-xs font-mono text-gray-400 bg-gray-900 px-2 py-0.5 rounded border border-gray-800" x-text="filteredItems.length.toLocaleString() + ' coincidencias'"></span>
+                            <span class="text-xs font-mono text-gray-400 bg-gray-900 px-2 py-0.5 rounded border border-gray-800" x-text="filteredItems.length.toLocaleString() + ' elementos'"></span>
+                            
+                            <!-- Date Range Badge -->
+                            <template x-if="dateRangeText">
+                                <span class="text-[11px] font-mono text-tiktokCyan bg-tiktokCyan/10 border border-tiktokCyan/20 px-2.5 py-0.5 rounded-full" x-text="'📅 ' + dateRangeText"></span>
+                            </template>
                         </div>
                         <div class="text-xs text-gray-400 font-mono">
                             Página <span class="text-gray-200 font-bold" x-text="currentPage"></span> de <span class="text-gray-200 font-bold" x-text="totalPages"></span>
                         </div>
                     </div>
+
+                    <!-- Special Notice for Likes limit from TikTok -->
+                    <template x-if="currentTab === 'likes' && likesList.length === 6000">
+                        <div class="bg-amber-950/40 border border-amber-900/50 rounded-xl px-4 py-3 flex items-start gap-3 text-xs text-amber-200/90">
+                            <span class="text-base shrink-0">ℹ️</span>
+                            <div class="flex flex-col gap-0.5">
+                                <span class="font-bold">Límite oficial de exportación de TikTok alcanzado (6,000 likes):</span>
+                                <span class="text-amber-300/80">TikTok limita el archivo a tus 6,000 Me gusta más recientes. Si tienes otro respaldo anterior de TikTok, puedes usar el botón <strong class="text-tiktokCyan">"Fusionar otro JSON"</strong> arriba para sumarlos todos.</span>
+                            </div>
+                        </div>
+                    </template>
 
                     <!-- Empty State for Filter -->
                     <template x-if="filteredItems.length === 0">
@@ -335,7 +362,7 @@
 
                     <!-- Items Grid / List -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                        <template x-for="(item, index) in paginatedItems" :key="(item.videoId || '') + '-' + (item.date || '') + '-' + index">
+                        <template x-for="(item, index) in paginatedItems" :key="(item.videoId || '') + '-' + (item.timestamp || '') + '-' + index">
                             <div class="bg-gray-900/60 border border-gray-800/90 hover:border-gray-700 rounded-xl p-4 flex flex-col justify-between gap-3.5 transition-all hover:bg-gray-900/90 group shadow-sm">
                                 
                                 <!-- Card Header -->
@@ -594,7 +621,7 @@
                         if (this.notification.message === msg) {
                             this.notification.message = '';
                         }
-                    }, 4500);
+                    }, 5000);
                 },
 
                 switchTab(tab) {
@@ -608,32 +635,56 @@
                     return m ? m[1] : null;
                 },
 
+                // Robust date-to-timestamp parser: handles YYYY-MM-DD HH:mm:ss, with or without UTC
+                parseDateToTimestamp(dateStr) {
+                    if (!dateStr) return 0;
+                    if (typeof dateStr === 'number') return dateStr;
+                    let s = String(dateStr).trim();
+                    if (s.endsWith(' UTC')) {
+                        s = s.slice(0, -4).replace(' ', 'T') + 'Z';
+                    } else if (s.includes(' ') && !s.includes('T')) {
+                        s = s.replace(' ', 'T');
+                    }
+                    const t = Date.parse(s);
+                    return isNaN(t) ? 0 : t;
+                },
+
                 handleFileSelect(event) {
                     const file = event.target.files[0];
-                    if (file) this.processFile(file);
+                    if (file) this.processFile(file, false);
+                },
+
+                handleMergeFileSelect(event) {
+                    const file = event.target.files[0];
+                    if (file) this.processFile(file, true);
+                    event.target.value = ''; // reset file input
                 },
 
                 handleFileDrop(event) {
                     const file = event.dataTransfer.files[0];
                     if (file) {
                         if (file.type === "application/json" || file.name.endsWith('.json')) {
-                            this.processFile(file);
+                            this.processFile(file, false);
                         } else {
                             this.showNotification('Por favor, arrastra un archivo con extensión .json válido.', 'error');
                         }
                     }
                 },
 
-                processFile(file) {
+                processFile(file, isMerge = false) {
                     this.isLoading = true;
                     const reader = new FileReader();
                     reader.onload = (e) => {
                         try {
                             const json = JSON.parse(e.target.result);
-                            this.parseTikTokData(json);
-                            this.dataLoaded = true;
+                            if (isMerge) {
+                                this.mergeTikTokData(json);
+                            } else {
+                                this.parseTikTokData(json);
+                                this.dataLoaded = true;
+                                this.showNotification('¡Archivo de TikTok analizado e indexado correctamente!');
+                            }
                             this.isLoading = false;
-                            this.showNotification('¡Archivo de TikTok analizado e indexado correctamente!');
                         } catch (err) {
                             console.error(err);
                             this.isLoading = false;
@@ -653,19 +704,19 @@
                             "Like List": {
                                 "ItemFavoriteList": [
                                     { "date": "2026-10-23 18:50:58", "link": "https://www.tiktokv.com/share/video/7685141780710346004/" },
-                                    { "date": "2026-10-23 15:47:58", "link": "https://www.tiktokv.com/share/video/7699864987468123413/" }
+                                    { "date": "2024-12-18 18:31:27", "link": "https://www.tiktokv.com/share/video/7699864987468123413/" }
                                 ]
                             },
                             "Favorite Videos": {
                                 "FavoriteVideoList": [
-                                    { "Date": "2026-10-22 19:17:27", "Link": "https://www.tiktokv.com/share/video/7699189192391265542/" }
+                                    { "Date": "2021-07-11 16:59:13", "Link": "https://www.tiktokv.com/share/video/7699189192391265542/" }
                                 ]
                             }
                         },
                         "Comment": {
                             "Comments": {
                                 "CommentsList": [
-                                    { "date": "2026-10-23 16:00:00", "comment": "Excelente tutorial, me sirvió muchísimo 🚀", "originalPostUrl": "https://www.tiktok.com/@creator/video/7699664150611365127" }
+                                    { "date": "2021-07-18 01:07:44 UTC", "comment": "@paco.web is real?", "originalPostUrl": "https://www.tiktok.com/@creator/video/7699664150611365127" }
                                 ]
                             }
                         },
@@ -677,7 +728,7 @@
                             },
                             "Reposts": {
                                 "RepostList": [
-                                    { "Date": "2026-10-23 15:47:59", "Link": "https://www.tiktokv.com/share/video/7699864987468123413/" }
+                                    { "Date": "2022-10-03 21:16:20", "Link": "https://www.tiktokv.com/share/video/7699864987468123413/" }
                                 ]
                             },
                             "Searches": {
@@ -700,7 +751,7 @@
                 parseTikTokData(json) {
                     this.resetLists();
 
-                    // 1. EXTRACT LIKES
+                    // 1. EXTRACT LIKES (No artificial cap, maps every item)
                     let rawLikes = [];
                     const likeContainer = json['Likes and Favorites']?.['Like List'] || json['Like List'] || json.likes;
                     if (Array.isArray(likeContainer)) {
@@ -710,8 +761,10 @@
                     }
                     this.likesList = rawLikes.map(item => {
                         const link = item.link || item.Link || item.video_link || '';
+                        const dateStr = item.date || item.Date || item.create_time || '';
                         return {
-                            date: item.date || item.Date || item.create_time || '',
+                            date: dateStr,
+                            timestamp: this.parseDateToTimestamp(dateStr),
                             link: link,
                             videoId: this.extractVideoId(link),
                             text: item.text || item.title || item.Title || ''
@@ -727,9 +780,11 @@
                         if (Array.isArray(subObj)) {
                             subObj.forEach(item => {
                                 const link = item.Link || item.link || item.url || '';
+                                const dateStr = item.Date || item.date || item.create_time || '';
                                 rawFavs.push({
                                     category: key,
-                                    date: item.Date || item.date || item.create_time || '',
+                                    date: dateStr,
+                                    timestamp: this.parseDateToTimestamp(dateStr),
                                     link: link,
                                     videoId: this.extractVideoId(link),
                                     text: item.Title || item.title || item.text || item.Name || item.name || ''
@@ -740,9 +795,11 @@
                                 if (Array.isArray(subObj[subKey])) {
                                     subObj[subKey].forEach(item => {
                                         const link = item.Link || item.link || item.url || '';
+                                        const dateStr = item.Date || item.date || item.create_time || '';
                                         rawFavs.push({
                                             category: key,
-                                            date: item.Date || item.date || item.create_time || '',
+                                            date: dateStr,
+                                            timestamp: this.parseDateToTimestamp(dateStr),
                                             link: link,
                                             videoId: this.extractVideoId(link),
                                             text: item.Title || item.title || item.text || item.Name || item.name || ''
@@ -764,8 +821,10 @@
                     }
                     this.commentsList = rawComments.map(item => {
                         const link = item.originalPostUrl || item['original post link'] || item.link || item.Link || '';
+                        const dateStr = item.date || item.Date || item.create_time || '';
                         return {
-                            date: item.date || item.Date || item.create_time || '',
+                            date: dateStr,
+                            timestamp: this.parseDateToTimestamp(dateStr),
                             text: item.comment || item.text || item.Comment || '',
                             sticker: item.sticker && item.sticker !== 'N/A' ? item.sticker : null,
                             link: link,
@@ -784,10 +843,12 @@
                     }
                     this.sharesList = rawShares.map(item => {
                         const link = item.Link || item.link || item.url || '';
+                        const dateStr = item.Date || item.date || '';
                         const method = item.Method || item.method || 'Enlace copiado';
                         const sharedContent = item.SharedContent || item.shared_content || '';
                         return {
-                            date: item.Date || item.date || '',
+                            date: dateStr,
+                            timestamp: this.parseDateToTimestamp(dateStr),
                             link: link,
                             videoId: this.extractVideoId(link),
                             text: `Compartido mediante: ${method} ${sharedContent ? '(' + sharedContent + ')' : ''}`
@@ -804,8 +865,10 @@
                     }
                     this.repostsList = rawReposts.map(item => {
                         const link = item.Link || item.link || '';
+                        const dateStr = item.Date || item.date || '';
                         return {
-                            date: item.Date || item.date || '',
+                            date: dateStr,
+                            timestamp: this.parseDateToTimestamp(dateStr),
                             link: link,
                             videoId: this.extractVideoId(link),
                             text: 'Video republicado (Repost)'
@@ -820,11 +883,15 @@
                     } else if (searchNode && typeof searchNode === 'object') {
                         rawSearches = searchNode.SearchList || searchNode.search_list || [];
                     }
-                    this.searchesList = rawSearches.map(item => ({
-                        date: item.Date || item.date || '',
-                        text: item.SearchTerm || item.searchTerm || item.search_term || '',
-                        link: ''
-                    }));
+                    this.searchesList = rawSearches.map(item => {
+                        const dateStr = item.Date || item.date || '';
+                        return {
+                            date: dateStr,
+                            timestamp: this.parseDateToTimestamp(dateStr),
+                            text: item.SearchTerm || item.searchTerm || item.search_term || '',
+                            link: ''
+                        };
+                    });
 
                     // 7. EXTRACT WATCH HISTORY
                     let rawWatch = [];
@@ -836,8 +903,10 @@
                     }
                     this.watchList = rawWatch.map(item => {
                         const link = item.Link || item.link || '';
+                        const dateStr = item.Date || item.date || '';
                         return {
-                            date: item.Date || item.date || '',
+                            date: dateStr,
+                            timestamp: this.parseDateToTimestamp(dateStr),
                             link: link,
                             videoId: this.extractVideoId(link),
                             text: item.Title || item.title || ''
@@ -854,8 +923,10 @@
                     }
                     this.postsList = rawPosts.map(item => {
                         const link = item.Link || item.link || '';
+                        const dateStr = item.Date || item.date || '';
                         return {
-                            date: item.Date || item.date || '',
+                            date: dateStr,
+                            timestamp: this.parseDateToTimestamp(dateStr),
                             link: link,
                             directVideoUrl: link.includes('mime_type=video_mp4') || link.endsWith('.mp4') ? link : null,
                             videoId: this.extractVideoId(link),
@@ -867,6 +938,48 @@
                     });
 
                     this.currentPage = 1;
+                },
+
+                // Merge another JSON export and deduplicate
+                mergeTikTokData(newJson) {
+                    const beforeLikes = this.likesList.length;
+                    
+                    // Backup old lists
+                    const oldLikes = this.likesList;
+                    const oldFavs = this.favoritesList;
+                    const oldComments = this.commentsList;
+                    const oldShares = this.sharesList;
+                    const oldReposts = this.repostsList;
+                    const oldSearches = this.searchesList;
+                    const oldWatch = this.watchList;
+                    const oldPosts = this.postsList;
+
+                    // Parse new data into temporary lists
+                    this.parseTikTokData(newJson);
+
+                    // Deduplicate helper
+                    const mergeLists = (listA, listB) => {
+                        const map = new Map();
+                        [...listA, ...listB].forEach(item => {
+                            const key = (item.videoId ? 'v_' + item.videoId : '') + '_' + item.date + '_' + (item.text || item.link || '');
+                            if (!map.has(key)) {
+                                map.set(key, item);
+                            }
+                        });
+                        return Array.from(map.values());
+                    };
+
+                    this.likesList = mergeLists(oldLikes, this.likesList);
+                    this.favoritesList = mergeLists(oldFavs, this.favoritesList);
+                    this.commentsList = mergeLists(oldComments, this.commentsList);
+                    this.sharesList = mergeLists(oldShares, this.sharesList);
+                    this.repostsList = mergeLists(oldReposts, this.repostsList);
+                    this.searchesList = mergeLists(oldSearches, this.searchesList);
+                    this.watchList = mergeLists(oldWatch, this.watchList);
+                    this.postsList = mergeLists(oldPosts, this.postsList);
+
+                    const addedLikes = this.likesList.length - beforeLikes;
+                    this.showNotification(`¡Archivos fusionados! Ahora tienes ${this.likesList.length.toLocaleString()} Me gusta (+${addedLikes.toLocaleString()} nuevos) sin duplicados.`);
                 },
 
                 resetLists() {
@@ -931,11 +1044,42 @@
                         });
                     }
 
+                    // Precise numerical timestamp sorting: guarantees items from 2021 are shown first when 'oldest' is selected
                     return [...list].sort((a, b) => {
-                        const dateA = a.date || '';
-                        const dateB = b.date || '';
-                        return this.sortOrder === 'oldest' ? dateA.localeCompare(dateB) : dateB.localeCompare(dateA);
+                        const tA = a.timestamp || 0;
+                        const tB = b.timestamp || 0;
+                        if (tA === tB) return 0;
+                        return this.sortOrder === 'oldest' ? tA - tB : tB - tA;
                     });
+                },
+
+                get dateRangeText() {
+                    const list = this.filteredItems;
+                    if (!list || list.length === 0) return '';
+                    let minTs = Infinity;
+                    let maxTs = -Infinity;
+                    let minDate = '';
+                    let maxDate = '';
+
+                    list.forEach(i => {
+                        if (i.timestamp && i.timestamp > 0) {
+                            if (i.timestamp < minTs) {
+                                minTs = i.timestamp;
+                                minDate = i.date;
+                            }
+                            if (i.timestamp > maxTs) {
+                                maxTs = i.timestamp;
+                                maxDate = i.date;
+                            }
+                        }
+                    });
+
+                    if (minDate && maxDate) {
+                        const d1 = minDate.split(' ')[0];
+                        const d2 = maxDate.split(' ')[0];
+                        return d1 === d2 ? d1 : `${d1} → ${d2}`;
+                    }
+                    return '';
                 },
 
                 get totalPages() {
